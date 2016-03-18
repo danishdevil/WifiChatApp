@@ -1,11 +1,16 @@
 package com.toutcanny.wifichat;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.format.Formatter;
 import android.util.Log;
+import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
@@ -23,11 +28,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.ServerSocket;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 
-public class AvailableDevices extends AppCompatActivity {
+public class AvailableDevices extends AppCompatActivity implements AdapterView.OnItemClickListener {
 
 
     private DeviceList availableDevices;
@@ -36,14 +42,20 @@ public class AvailableDevices extends AppCompatActivity {
     ArrayAdapter<String> deviceList;
     String serverIP,serverPort;
     String myIP,myName;
+    DeviceListGetter deviceListGetter;
+    ChatRequestListener chatRequestListener;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_available__devices);
         initialise();
         listView.setAdapter(deviceList);
-        DeviceListGetter deviceListGetter=new DeviceListGetter();
+        deviceListGetter=new DeviceListGetter();
         deviceListGetter.execute("hello");
+        chatRequestListener=new ChatRequestListener();
+        chatRequestListener.execute("Listen for chat");
+        listView.setOnItemClickListener(this);
     }
 
 
@@ -54,7 +66,7 @@ public class AvailableDevices extends AppCompatActivity {
         serverIP=getIntent().getStringExtra("ip_address");
         serverPort=getIntent().getStringExtra("port");
         availableDevices=new DeviceList();
-        deviceList=new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,availableDevices.getNames());
+        deviceList=new ArrayAdapter<String>(this,R.layout.available_device_list_item,R.id.textView10,availableDevices.getNames());
         listView=(ListView)findViewById(R.id.listView);
         setMyDeviceDetail();
     }
@@ -79,7 +91,47 @@ public class AvailableDevices extends AppCompatActivity {
         }
     }
 
+    @Override
+    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        AlertDialog.Builder builder=new AlertDialog.Builder(this);
+        builder.setTitle("Connect to "+availableDevices.getName(position)+"?");
+        builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                startActivity(new Intent(getBaseContext(), ChatActivity.class));
+            }
+        });
+        builder.setNegativeButton("No",null);
+        builder.create().show();
+    }
 
+
+
+
+    class ChatRequestListener extends AsyncTask<String,String,String>
+    {
+        @Override
+        protected void onProgressUpdate(String... values) {
+            super.onProgressUpdate(values);
+            Intent intent=new Intent(getBaseContext(),ChatActivity.class);
+            intent.putExtra("SocketID",values[0]);
+            startActivity(intent);
+        }
+
+        @Override
+        protected String doInBackground(String... params) {
+            try{
+                ServerSocket sersock = new ServerSocket(3000);
+                sersock.accept();
+                publishProgress(sersock.getLocalSocketAddress().toString());
+                sersock.close();
+            }catch (Exception e)
+            {
+
+            }
+            return null;
+        }
+    }
     //Asynctask Task That performs the refresh stuff
     class DeviceListGetter extends AsyncTask<String,String,String>
     {
@@ -108,7 +160,7 @@ public class AvailableDevices extends AppCompatActivity {
         protected void onProgressUpdate(String... progress) {
 
             //Updating the adapters
-            deviceList=new ArrayAdapter<String>(getBaseContext(),android.R.layout.simple_list_item_1,availableDevices.getNames());
+            deviceList=new ArrayAdapter<String>(getBaseContext(),R.layout.available_device_list_item,R.id.textView10,availableDevices.getNames());
             listView.setAdapter(deviceList);
             setMessage(message);
         }
@@ -118,7 +170,7 @@ public class AvailableDevices extends AppCompatActivity {
         @Override
         protected String doInBackground(String... params) {
             try {
-                while(true) {
+                while(!isCancelled()) {
                     //Forming the Request
                     String urlRequest = "?ip_address=" + myIP + "&name=" + URLEncoder.encode(myName, "UTF-8")+"&task=search";
                     URL url = new URL("http://" + serverIP + ":" + serverPort + "/MyProject/androidInfo.php" + urlRequest);
@@ -161,5 +213,9 @@ public class AvailableDevices extends AppCompatActivity {
 
     }
 
-
+    @Override
+    protected void onPause() {
+        super.onPause();
+        deviceListGetter.cancel(true);
+    }
 }

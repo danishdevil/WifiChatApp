@@ -1,5 +1,7 @@
 package com.toutcanny.wifichat.Data_Model;
 
+import android.util.Log;
+
 import java.util.ArrayList;
 
 /**
@@ -43,11 +45,16 @@ public class DeviceList {
         ipAddresses.add(ip);
     }
 
+    public String getName(int pos)
+    {
+        return names.get(pos);
+    }
     public String getName(String ip)
     {
-        for(int i=0;i<=ipAddresses.size();++i)
+        for(int i=0;i<ipAddresses.size();++i)
         {
-            if(ipAddresses.get(i).equals(ip))
+            Log.e(ipAddresses.get(i),ip);
+            if(ipAddresses.get(i).trim().equals(ip.trim()))
                 return names.get(i);
         }
         return null;

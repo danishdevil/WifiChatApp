@@ -14,26 +14,24 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
-
-import com.toutcanny.wifichat.Data_Model.DeviceDetail;
 import com.toutcanny.wifichat.Data_Model.DeviceList;
 import com.toutcanny.wifichat.Helper.NamePreference;
+import com.toutcanny.wifichat.Helper.NetworkChange;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.util.ArrayList;
 
-public class AvailableDevices extends AppCompatActivity implements AdapterView.OnItemClickListener {
+public class AvailableDevices extends AppCompatActivity implements AdapterView.OnItemClickListener,NetworkChange {
 
 
     private DeviceList availableDevices;
@@ -51,11 +49,17 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
         setContentView(R.layout.activity_available__devices);
         initialise();
         listView.setAdapter(deviceList);
-        deviceListGetter=new DeviceListGetter();
-        deviceListGetter.execute("hello");
-        chatRequestListener=new ChatRequestListener();
-        chatRequestListener.execute("Listen for chat");
         listView.setOnItemClickListener(this);
+        Network_Change_Reciever.setNetworkChange(this);
+    }
+
+    //Start the Asynctasks
+    private void startAsynctasks()
+    {
+        deviceListGetter=new DeviceListGetter();
+        deviceListGetter.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,"Hello");
+        chatRequestListener=new ChatRequestListener();
+        chatRequestListener.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,"Hello");
     }
 
 
@@ -91,40 +95,107 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
         }
     }
 
+
+    //Item selected listener
     @Override
-    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+    public void onItemClick(AdapterView<?> parent, View view, final int position, long id) {
         AlertDialog.Builder builder=new AlertDialog.Builder(this);
         builder.setTitle("Connect to "+availableDevices.getName(position)+"?");
         builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                startActivity(new Intent(getBaseContext(), ChatActivity.class));
+                Intent intent=new Intent(getBaseContext(),ChatActivity.class);
+                intent.putExtra("task","request");
+                intent.putExtra("ipAddress",availableDevices.getIpAddresses().get(position));
+                intent.putExtra("name",availableDevices.getNames().get(position));
+                startActivity(intent);
             }
         });
         builder.setNegativeButton("No",null);
         builder.create().show();
     }
 
+    @Override
+    public void WifiStateChanged() {
+        AlertDialog.Builder alertBuilder=new AlertDialog.Builder(this);
+        alertBuilder.setTitle("Wifi Disconnected");
+        alertBuilder.setMessage("You are now disconnected");
+        alertBuilder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Intent intent=new Intent(getBaseContext(),MainActivity.class);
+                startActivity(intent);
+            }
+        });
+        alertBuilder.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialog) {
+                Intent intent=new Intent(getBaseContext(),MainActivity.class);
+                startActivity(intent);
+            }
+        });
+        alertBuilder.show();
+    }
 
 
-
-    class ChatRequestListener extends AsyncTask<String,String,String>
+    //Listen for devices trying to connect
+    class ChatRequestListener extends AsyncTask<String,Socket,String>
     {
+        String name;
+        String ip;
+
         @Override
-        protected void onProgressUpdate(String... values) {
+        protected void onProgressUpdate(Socket... values) {
             super.onProgressUpdate(values);
-            Intent intent=new Intent(getBaseContext(),ChatActivity.class);
-            intent.putExtra("SocketID",values[0]);
-            startActivity(intent);
+
+            final Socket socket=values[0];
+            StringBuilder stringBuilder=new StringBuilder(socket.getInetAddress().toString());
+            stringBuilder.deleteCharAt(0);
+            ip=stringBuilder.toString();
+            name=availableDevices.getName(ip);
+
+            AlertDialog.Builder builder=new AlertDialog.Builder(AvailableDevices.this);
+            builder.setTitle("Connect to " + name + "?");
+            builder.setPositiveButton("Connect", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    try {
+                        socket.getOutputStream().write("Y".getBytes());
+                        socket.close();
+                        Intent intent = new Intent(getApplicationContext(), ChatActivity.class);
+                        intent.putExtra("SocketID", ip);
+                        startActivity(intent);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+            builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    try {
+                        socket.getOutputStream().write("N".getBytes());
+                        socket.close();
+                    }catch (Exception e)
+                    {
+
+                    }
+                }
+            });
+            builder.show();
+
         }
 
         @Override
         protected String doInBackground(String... params) {
             try{
-                ServerSocket sersock = new ServerSocket(3000);
-                sersock.accept();
-                publishProgress(sersock.getLocalSocketAddress().toString());
-                sersock.close();
+                while(!isCancelled()) {
+                    //Opening the server socket to listen
+                    ServerSocket sersock = new ServerSocket(3000);
+                    Socket socket=sersock.accept();
+                    publishProgress(socket);
+                    sersock.close();
+                }
             }catch (Exception e)
             {
 
@@ -132,6 +203,9 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
             return null;
         }
     }
+
+
+
     //Asynctask Task That performs the refresh stuff
     class DeviceListGetter extends AsyncTask<String,String,String>
     {
@@ -178,6 +252,7 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
                     //Opening Connection
                     HttpURLConnection httpURLConnection = (HttpURLConnection) url.openConnection();
 
+                    Log.e("I updated the settings",this.toString());
                     //Getting String and Reading
                     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(httpURLConnection.getInputStream()));
                     String s;
@@ -193,19 +268,14 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
 
                     //Closing the Links
                     bufferedReader.close();
+                    httpURLConnection.disconnect();
 
                     //Sleep for 3 Seconds
                     Thread.sleep(3000);
 
 
             }
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (JSONException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
             return null;
@@ -213,9 +283,21 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
 
     }
 
+
+    //Resuming the Asynctasks
+    @Override
+    protected void onResume() {
+        super.onResume();
+        startAsynctasks();
+        Network_Change_Reciever.setNetworkChange(this);
+    }
+
+
+    //Stopping the Asynctasks
     @Override
     protected void onPause() {
         super.onPause();
         deviceListGetter.cancel(true);
+        chatRequestListener.cancel(true);
     }
 }

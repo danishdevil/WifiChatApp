@@ -9,6 +9,7 @@ import android.net.wifi.WifiManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.TextView;
 
@@ -22,6 +23,7 @@ public class ServerDetails extends AppCompatActivity implements NetworkChange {
     String ssid_name_string;
     EditText editServerIP,editServerPort;
     WifiDetailDataSource wifiDetailDataSource;
+    CheckBox checkBox;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,6 +37,7 @@ public class ServerDetails extends AppCompatActivity implements NetworkChange {
     private void inititialise()
     {
         Network_Change_Reciever.setNetworkChange(this);
+        checkBox=(CheckBox)findViewById(R.id.checkBox);
         ssidName=(TextView)findViewById(R.id.textView9);
         editServerIP=(EditText)findViewById(R.id.editText2);
         editServerPort=(EditText)findViewById(R.id.editText3);
@@ -81,11 +84,18 @@ public class ServerDetails extends AppCompatActivity implements NetworkChange {
 
     public void onNext(View v)
     {
-        wifiDetailDataSource.storeWifiDetails(new WifiDetail(ssid_name_string,editServerIP.getText().toString(),editServerPort.getText().toString()));
+        if(checkBox.isChecked()) {
+            wifiDetailDataSource.storeWifiDetails(new WifiDetail(ssid_name_string, editServerIP.getText().toString(), editServerPort.getText().toString()));
+        }
         Intent intent=new Intent(this,AvailableDevices.class);
         intent.putExtra("ip_address",editServerIP.getText().toString());
         intent.putExtra("port", editServerPort.getText().toString());
         startActivity(intent);
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Network_Change_Reciever.setNetworkChange(this);
+    }
 }

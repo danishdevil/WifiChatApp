@@ -105,4 +105,10 @@ public class MainActivity extends AppCompatActivity implements NetworkChange {
     public void WifiStateChanged() {
         setConnectionStuff();
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Network_Change_Reciever.setNetworkChange(this);
+    }
 }

@@ -43,6 +43,7 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
     DeviceListGetter deviceListGetter;
     ChatRequestListener chatRequestListener;
 
+    boolean ActivityInForeground;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -143,6 +144,7 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
     {
         String name;
         String ip;
+        ServerSocket sersock;
 
         @Override
         protected void onProgressUpdate(Socket... values) {
@@ -163,7 +165,10 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
                         socket.getOutputStream().write("Y".getBytes());
                         socket.close();
                         Intent intent = new Intent(getApplicationContext(), ChatActivity.class);
-                        intent.putExtra("SocketID", ip);
+                        intent.putExtra("ipAddress", ip);
+                        intent.putExtra("name",name);
+                        intent.putExtra("task","connect");
+                        sersock.close();
                         startActivity(intent);
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -191,7 +196,8 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
             try{
                 while(!isCancelled()) {
                     //Opening the server socket to listen
-                    ServerSocket sersock = new ServerSocket(3000);
+                    sersock = new ServerSocket(3000);
+                    Log.e("pin",sersock.getInetAddress().toString());
                     Socket socket=sersock.accept();
                     publishProgress(socket);
                     sersock.close();
@@ -244,7 +250,7 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
         @Override
         protected String doInBackground(String... params) {
             try {
-                while(!isCancelled()) {
+                while(ActivityInForeground) {
                     //Forming the Request
                     String urlRequest = "?ip_address=" + myIP + "&name=" + URLEncoder.encode(myName, "UTF-8")+"&task=search";
                     URL url = new URL("http://" + serverIP + ":" + serverPort + "/MyProject/androidInfo.php" + urlRequest);
@@ -252,7 +258,6 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
                     //Opening Connection
                     HttpURLConnection httpURLConnection = (HttpURLConnection) url.openConnection();
 
-                    Log.e("I updated the settings",this.toString());
                     //Getting String and Reading
                     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(httpURLConnection.getInputStream()));
                     String s;
@@ -288,6 +293,7 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
     @Override
     protected void onResume() {
         super.onResume();
+        ActivityInForeground=true;
         startAsynctasks();
         Network_Change_Reciever.setNetworkChange(this);
     }
@@ -297,6 +303,7 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
     @Override
     protected void onPause() {
         super.onPause();
+        ActivityInForeground=false;
         deviceListGetter.cancel(true);
         chatRequestListener.cancel(true);
     }

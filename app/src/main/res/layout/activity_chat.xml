@@ -8,38 +8,44 @@
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context=".ChatActivity"
-    android:orientation="vertical"
-    android:weightSum="1">
+    android:orientation="vertical">
 
 
     <LinearLayout
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:layout_height="match_parent"
         android:layout_gravity="center_horizontal"
         android:layout_weight="0.9"
-        ></LinearLayout>
-
-    <LinearLayout
-        android:layout_weight="0.1"
-        android:orientation="horizontal"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-
         >
 
+        <ListView
+            android:layout_width="wrap_content"
+            android:layout_height="434dp"
+            android:id="@+id/listView2"
+            android:layout_gravity="center_vertical"
+            android:divider="@null"
+            android:dividerHeight="0dp"
+            />
+    </LinearLayout>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
         <EditText
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="68dp"
             android:id="@+id/editText4"
             android:layout_weight="0.95" />
 
         <Button
             android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:text="New Button"
+            android:layout_height="60dp"
+            android:text="Send"
             android:id="@+id/button3"
+            android:onClick="sendMessage"
             android:layout_weight="0.05" />
 
     </LinearLayout>

@@ -15,6 +15,7 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
 import com.toutcanny.wifichat.Data_Model.DeviceList;
+import com.toutcanny.wifichat.Helper.IpGetter;
 import com.toutcanny.wifichat.Helper.NamePreference;
 import com.toutcanny.wifichat.Helper.NetworkChange;
 
@@ -80,9 +81,7 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
     public void setMyDeviceDetail()
     {
         myName= NamePreference.getName(this);
-        WifiManager wm = (WifiManager) getSystemService(WIFI_SERVICE);
-        String ip = Formatter.formatIpAddress(wm.getConnectionInfo().getIpAddress());
-        myIP=ip;
+        myIP= IpGetter.getIP(this);
     }
 
 
@@ -109,6 +108,8 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
                 intent.putExtra("task","request");
                 intent.putExtra("ipAddress",availableDevices.getIpAddresses().get(position));
                 intent.putExtra("name",availableDevices.getNames().get(position));
+                intent.putExtra("serverIP",serverIP);
+                intent.putExtra("serverPort",serverPort);
                 startActivity(intent);
             }
         });
@@ -168,6 +169,8 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
                         intent.putExtra("ipAddress", ip);
                         intent.putExtra("name",name);
                         intent.putExtra("task","connect");
+                        intent.putExtra("serverIP",serverIP);
+                        intent.putExtra("serverPort",serverPort);
                         sersock.close();
                         startActivity(intent);
                     } catch (Exception e) {

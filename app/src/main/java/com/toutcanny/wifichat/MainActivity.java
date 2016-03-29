@@ -29,6 +29,7 @@ public class MainActivity extends AppCompatActivity implements NetworkChange {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         initialise();
+        getSupportActionBar().setTitle("Enter Your Details");
     }
 
     private void setUpBroadcastReciever()

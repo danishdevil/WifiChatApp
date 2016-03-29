@@ -29,6 +29,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.URLEncoder;
 
@@ -50,9 +51,11 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_available__devices);
         initialise();
+        listView.setEmptyView(findViewById(R.id.empty_list_item));
         listView.setAdapter(deviceList);
         listView.setOnItemClickListener(this);
         Network_Change_Reciever.setNetworkChange(this);
+        getSupportActionBar().setTitle("Select user");
     }
 
     //Start the Asynctasks
@@ -150,64 +153,77 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
         @Override
         protected void onProgressUpdate(Socket... values) {
             super.onProgressUpdate(values);
-
-            final Socket socket=values[0];
-            StringBuilder stringBuilder=new StringBuilder(socket.getInetAddress().toString());
-            stringBuilder.deleteCharAt(0);
-            ip=stringBuilder.toString();
-            name=availableDevices.getName(ip);
-
-            AlertDialog.Builder builder=new AlertDialog.Builder(AvailableDevices.this);
-            builder.setTitle("Connect to " + name + "?");
-            builder.setPositiveButton("Connect", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    try {
-                        socket.getOutputStream().write("Y".getBytes());
-                        socket.close();
-                        Intent intent = new Intent(getApplicationContext(), ChatActivity.class);
-                        intent.putExtra("ipAddress", ip);
-                        intent.putExtra("name",name);
-                        intent.putExtra("task","connect");
-                        intent.putExtra("serverIP",serverIP);
-                        intent.putExtra("serverPort",serverPort);
-                        sersock.close();
-                        startActivity(intent);
-                    } catch (Exception e) {
-                        e.printStackTrace();
+            if(ActivityInForeground) {
+                final Socket socket = values[0];
+                StringBuilder stringBuilder = new StringBuilder(socket.getInetAddress().toString());
+                stringBuilder.deleteCharAt(0);
+                ip = stringBuilder.toString();
+                name = availableDevices.getName(ip);
+                Log.e("Alert Box Called",this.toString());
+                AlertDialog.Builder builder = new AlertDialog.Builder(AvailableDevices.this);
+                builder.setTitle("Connect to " + name + "?");
+                builder.setPositiveButton("Connect", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        try {
+                            socket.getOutputStream().write("Y".getBytes());
+                            Intent intent = new Intent(getApplicationContext(), ChatActivity.class);
+                            intent.putExtra("ipAddress", ip);
+                            intent.putExtra("name", name);
+                            intent.putExtra("task", "connect");
+                            intent.putExtra("serverIP", serverIP);
+                            intent.putExtra("serverPort", serverPort);
+                            sersock.close();
+                            socket.close();
+                            startActivity(intent);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
-                }
-            });
-            builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    try {
-                        socket.getOutputStream().write("N".getBytes());
-                        socket.close();
-                    }catch (Exception e)
-                    {
+                });
+                builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        try {
+                            socket.getOutputStream().write("N".getBytes());
+                            socket.close();
+                        } catch (Exception e) {
 
+                        }
                     }
-                }
-            });
-            builder.show();
-
+                });
+                builder.show();
+            }
         }
 
         @Override
         protected String doInBackground(String... params) {
-            try{
-                while(!isCancelled()) {
+            while(ActivityInForeground) {
+                try {
+
                     //Opening the server socket to listen
                     sersock = new ServerSocket(3000);
-                    Log.e("pin",sersock.getInetAddress().toString());
-                    Socket socket=sersock.accept();
+                    Log.e("String", "Listening for request");
+                    sersock.setSoTimeout(3000);
+                    Socket socket = sersock.accept();
                     publishProgress(socket);
                     sersock.close();
-                }
-            }catch (Exception e)
-            {
+                } catch (SocketTimeoutException e)
+                {
+                    try {
+                        sersock.close();
+                    } catch (IOException e1) {
+                        Log.e("This also failed","");
+                    }
 
+                } catch(Exception e) {
+                    e.printStackTrace();
+                    try{
+                        sersock.close();
+                    }catch (Exception e1)
+                    {}
+                    break;
+                }
             }
             return null;
         }
@@ -241,11 +257,12 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
         //Set the Device List
         @Override
         protected void onProgressUpdate(String... progress) {
-
-            //Updating the adapters
-            deviceList=new ArrayAdapter<String>(getBaseContext(),R.layout.available_device_list_item,R.id.textView10,availableDevices.getNames());
-            listView.setAdapter(deviceList);
-            setMessage(message);
+            if(ActivityInForeground) {
+                //Updating the adapters
+                deviceList = new ArrayAdapter<String>(getBaseContext(), R.layout.available_device_list_item, R.id.textView10, availableDevices.getNames());
+                listView.setAdapter(deviceList);
+                setMessage(message);
+            }
         }
 
 
@@ -307,7 +324,5 @@ public class AvailableDevices extends AppCompatActivity implements AdapterView.O
     protected void onPause() {
         super.onPause();
         ActivityInForeground=false;
-        deviceListGetter.cancel(true);
-        chatRequestListener.cancel(true);
     }
 }

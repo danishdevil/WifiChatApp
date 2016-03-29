@@ -27,6 +27,7 @@
             android:screenOrientation="userPortrait"/>
         <activity android:name=".ChatActivity"
             android:windowSoftInputMode="adjustResize"
+            android:parentActivityName=".AvailableDevices"
 
         android:screenOrientation="userPortrait"></activity>
     </application>

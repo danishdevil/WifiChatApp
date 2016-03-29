@@ -10,4 +10,12 @@
         android:layout_height="wrap_content"
         android:id="@+id/listView"
         android:layout_weight="1" />
+    <TextView
+        android:layout_marginTop="30dp"
+        android:id="@+id/empty_list_item"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="No one else is available to chat. \n Please Wait for a while..."
+        android:visibility="gone"
+        android:textAlignment="center"/>
 </LinearLayout>

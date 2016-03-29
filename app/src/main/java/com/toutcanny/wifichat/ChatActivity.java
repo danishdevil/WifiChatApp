@@ -1,6 +1,9 @@
 package com.toutcanny.wifichat;
 
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -13,6 +16,8 @@ import android.widget.Toast;
 
 import com.toutcanny.wifichat.Helper.IpGetter;
 import com.toutcanny.wifichat.Helper.NamePreference;
+import com.toutcanny.wifichat.Helper.NetworkChange;
+
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -25,7 +30,7 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.URLEncoder;
 
-public class ChatActivity extends AppCompatActivity {
+public class ChatActivity extends AppCompatActivity implements NetworkChange {
 
     //The other partners IP address and Name
     String ipAddress;
@@ -62,7 +67,11 @@ public class ChatActivity extends AppCompatActivity {
         {
             startChat=false;
         }
+        Network_Change_Reciever.setNetworkChange(this);
+
         initialise();
+        //getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setTitle(name);
     }
 
     //Called when activity resumes
@@ -141,6 +150,28 @@ public class ChatActivity extends AppCompatActivity {
         messages.add("You : " + message);
         new MessageSender(message).start();
         editText.setText("");
+    }
+
+    @Override
+    public void WifiStateChanged() {
+        AlertDialog.Builder alertBuilder=new AlertDialog.Builder(this);
+        alertBuilder.setTitle("Wifi Disconnected");
+        alertBuilder.setMessage("You are now disconnected");
+        alertBuilder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Intent intent=new Intent(getBaseContext(),MainActivity.class);
+                startActivity(intent);
+            }
+        });
+        alertBuilder.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialog) {
+                Intent intent=new Intent(getBaseContext(),MainActivity.class);
+                startActivity(intent);
+            }
+        });
+        alertBuilder.show();
     }
 
     class MessageSender extends Thread{
@@ -230,12 +261,13 @@ public class ChatActivity extends AppCompatActivity {
 
         @Override
         protected void onProgressUpdate(String... values) {
-            super.onProgressUpdate(values);
-            if(messageRead.equals("Ø"))
-            {
-                onPause();
+            if (activityInForeground) {
+                super.onProgressUpdate(values);
+                if (messageRead.equals("Ø")) {
+                    onPause();
+                }
+                messages.add(name + " : " + messageRead);
             }
-            messages.add(name + " : " + messageRead);
         }
 
         @Override
@@ -260,10 +292,24 @@ public class ChatActivity extends AppCompatActivity {
                 }
                 catch (Exception e)
                 {
+                    try {
+                        sersocket.close();
+                    } catch (IOException e1) {
+                    }
                     e.printStackTrace();
                 }
             }
             return null;
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+            try {
+                sersocket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -281,13 +327,14 @@ public class ChatActivity extends AppCompatActivity {
 
         @Override
         protected void onProgressUpdate(String... values) {
-            super.onProgressUpdate(values);
-            if(!message.equals(values[0]))
-            {
-                message=values[0];
-                Toast.makeText(ChatActivity.this,message,Toast.LENGTH_LONG).show();
-            }
+            if(activityInForeground) {
+                super.onProgressUpdate(values);
 
+                if (!message.equals(values[0])) {
+                    message = values[0];
+                    Toast.makeText(ChatActivity.this, message, Toast.LENGTH_LONG).show();
+                }
+            }
         }
 
         @Override
